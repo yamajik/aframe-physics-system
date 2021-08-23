@@ -1,19 +1,22 @@
-var CANNON = require('cannon-es'),
-    mesh2shape = require('three-to-cannon').threeToCannon;
+var CANNON = require("cannon-es"),
+  mesh2shape = require("three-to-cannon");
 
-require('../../../lib/CANNON-shape2mesh');
+require("../../../lib/CANNON-shape2mesh");
 
 var Body = {
-  dependencies: ['velocity'],
+  dependencies: ["velocity"],
 
   schema: {
-    mass: {default: 5, if: {type: 'dynamic'}},
-    linearDamping:  { default: 0.01, if: {type: 'dynamic'}},
-    angularDamping: { default: 0.01,  if: {type: 'dynamic'}},
-    shape: {default: 'auto', oneOf: ['auto', 'box', 'cylinder', 'sphere', 'hull', 'mesh', 'none']},
-    cylinderAxis: {default: 'y', oneOf: ['x', 'y', 'z']},
-    sphereRadius: {default: NaN},
-    type: {default: 'dynamic', oneOf: ['static', 'dynamic']}
+    mass: { default: 5, if: { type: "dynamic" } },
+    linearDamping: { default: 0.01, if: { type: "dynamic" } },
+    angularDamping: { default: 0.01, if: { type: "dynamic" } },
+    shape: {
+      default: "auto",
+      oneOf: ["auto", "box", "cylinder", "sphere", "hull", "mesh", "none"]
+    },
+    cylinderAxis: { default: "y", oneOf: ["x", "y", "z"] },
+    sphereRadius: { default: NaN },
+    type: { default: "dynamic", oneOf: ["static", "dynamic"] }
   },
 
   /**
@@ -26,7 +29,7 @@ var Body = {
     if (this.el.sceneEl.hasLoaded) {
       this.initBody();
     } else {
-      this.el.sceneEl.addEventListener('loaded', this.initBody.bind(this));
+      this.el.sceneEl.addEventListener("loaded", this.initBody.bind(this));
     }
   },
 
@@ -36,20 +39,20 @@ var Body = {
    */
   initBody: function () {
     var el = this.el,
-        data = this.data;
+      data = this.data;
 
     var obj = this.el.object3D;
     var pos = obj.position;
     var quat = obj.quaternion;
 
     this.body = new CANNON.Body({
-      mass: data.type === 'static' ? 0 : data.mass || 0,
-      material: this.system.getMaterial('defaultMaterial'),
+      mass: data.type === "static" ? 0 : data.mass || 0,
+      material: this.system.getMaterial("defaultMaterial"),
       position: new CANNON.Vec3(pos.x, pos.y, pos.z),
       quaternion: new CANNON.Quaternion(quat.x, quat.y, quat.z, quat.w),
       linearDamping: data.linearDamping,
       angularDamping: data.angularDamping,
-      type: data.type === 'dynamic' ? CANNON.Body.DYNAMIC : CANNON.Body.STATIC,
+      type: data.type === "dynamic" ? CANNON.Body.DYNAMIC : CANNON.Body.STATIC
     });
 
     // Matrix World must be updated at root level, if scale is to be applied – updateMatrixWorld()
@@ -59,18 +62,21 @@ var Body = {
     // Potential fix: https://github.com/mrdoob/three.js/pull/7019
     this.el.object3D.updateMatrixWorld(true);
 
-    if(data.shape !== 'none') {
-      var options = data.shape === 'auto' ? undefined : AFRAME.utils.extend({}, this.data, {
-        type: mesh2shape.Type[data.shape.toUpperCase()]
-      });
+    if (data.shape !== "none") {
+      var options =
+        data.shape === "auto"
+          ? undefined
+          : AFRAME.utils.extend({}, this.data, {
+              type: mesh2shape.ShapeType[data.shape.toUpperCase()]
+            });
 
-      var shape = mesh2shape(this.el.object3D, options);
+      var result = mesh2shape.threeToCannon(this.el.object3D, options);
 
-      if (!shape) {
-        el.addEventListener('object3dset', this.initBody.bind(this));
+      if (!result) {
+        el.addEventListener("object3dset", this.initBody.bind(this));
         return;
       }
-      this.body.addShape(shape, shape.offset, shape.orientation);
+      this.body.addShape(result.shape, result.offset, result.orientation);
 
       // Show wireframe
       if (this.system.debug) {
@@ -89,23 +95,23 @@ var Body = {
     }
 
     if (this.isLoaded) {
-      this.el.emit('body-loaded', {body: this.el.body});
+      this.el.emit("body-loaded", { body: this.el.body });
     }
   },
 
-  addShape: function(shape, offset, orientation) {
-    if (this.data.shape !== 'none') {
-      console.warn('shape can only be added if shape property is none');
+  addShape: function (shape, offset, orientation) {
+    if (this.data.shape !== "none") {
+      console.warn("shape can only be added if shape property is none");
       return;
     }
 
     if (!shape) {
-      console.warn('shape cannot be null');
+      console.warn("shape cannot be null");
       return;
     }
 
     if (!this.body) {
-      console.warn('shape cannot be added before body is loaded');
+      console.warn("shape cannot be added before body is loaded");
       return;
     }
     this.body.addShape(shape, offset, orientation);
@@ -123,7 +129,7 @@ var Body = {
 
       this._play();
 
-      this.el.emit('body-loaded', {body: this.el.body});
+      this.el.emit("body-loaded", { body: this.el.body });
       this.shouldUpdateBody = false;
     }
 
@@ -172,11 +178,12 @@ var Body = {
     var data = this.data;
 
     if (prevData.type != undefined && data.type != prevData.type) {
-      this.body.type = data.type === 'dynamic' ? CANNON.Body.DYNAMIC : CANNON.Body.STATIC;
+      this.body.type =
+        data.type === "dynamic" ? CANNON.Body.DYNAMIC : CANNON.Body.STATIC;
     }
 
     this.body.mass = data.mass || 0;
-    if (data.type === 'dynamic') {
+    if (data.type === "dynamic") {
       this.body.linearDamping = data.linearDamping;
       this.body.angularDamping = data.angularDamping;
     }
@@ -226,15 +233,14 @@ var Body = {
 
     var offset, mesh;
     var orientation = new THREE.Quaternion();
-    for (var i = 0; i < this.body.shapes.length; i++)
-    {
-      offset = this.body.shapeOffsets[i],
-      orientation.copy(this.body.shapeOrientations[i]),
-      mesh = CANNON.shape2mesh(this.body).children[i];
+    for (var i = 0; i < this.body.shapes.length; i++) {
+      (offset = this.body.shapeOffsets[i]),
+        orientation.copy(this.body.shapeOrientations[i]),
+        (mesh = CANNON.shape2mesh(this.body).children[i]);
 
       var wireframe = new THREE.LineSegments(
         new THREE.EdgesGeometry(mesh.geometry),
-        new THREE.LineBasicMaterial({color: 0xff0000})
+        new THREE.LineBasicMaterial({ color: 0xff0000 })
       );
 
       if (offset) {
@@ -256,7 +262,7 @@ var Body = {
    */
   syncWireframe: function () {
     var offset,
-        wireframe = this.wireframe;
+      wireframe = this.wireframe;
 
     if (!this.wireframe) return;
 
@@ -282,16 +288,17 @@ var Body = {
    * Updates the CANNON.Body instance's position, velocity, and rotation, based on the scene.
    */
   syncToPhysics: (function () {
-    var q =  new THREE.Quaternion(),
-        v = new THREE.Vector3();
+    var q = new THREE.Quaternion(),
+      v = new THREE.Vector3();
     return function () {
       var el = this.el,
-          parentEl = el.parentEl,
-          body = this.body;
+        parentEl = el.parentEl,
+        body = this.body;
 
       if (!body) return;
 
-      if (el.components.velocity) body.velocity.copy(el.getAttribute('velocity'));
+      if (el.components.velocity)
+        body.velocity.copy(el.getAttribute("velocity"));
 
       if (parentEl.isScene) {
         body.quaternion.copy(el.object3D.quaternion);
@@ -306,19 +313,19 @@ var Body = {
       if (this.body.updateProperties) this.body.updateProperties();
       if (this.wireframe) this.syncWireframe();
     };
-  }()),
+  })(),
 
   /**
    * Updates the scene object's position and rotation, based on the physics simulation.
    */
   syncFromPhysics: (function () {
     var v = new THREE.Vector3(),
-        q1 = new THREE.Quaternion(),
-        q2 = new THREE.Quaternion();
+      q1 = new THREE.Quaternion(),
+      q2 = new THREE.Quaternion();
     return function () {
       var el = this.el,
-          parentEl = el.parentEl,
-          body = this.body;
+        parentEl = el.parentEl,
+        body = this.body;
 
       if (!body) return;
       if (!parentEl) return;
@@ -339,8 +346,8 @@ var Body = {
 
       if (this.wireframe) this.syncWireframe();
     };
-  }())
+  })()
 };
 
 module.exports.definition = Body;
-module.exports.Component = AFRAME.registerComponent('body', Body);
+module.exports.Component = AFRAME.registerComponent("body", Body);
