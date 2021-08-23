@@ -32,12 +32,27 @@ var AmmoShape = {
     orientation: { type: "vec4", default: { x: 0, y: 0, z: 0, w: 1 } },
     heightfieldData: { default: [] },
     heightfieldDistance: { default: 1 },
-    includeInvisible: { default: false }
+    includeInvisible: { default: false },
+    loadedEvent: { default: "" }
   },
 
   multiple: true,
 
-  init: function() {
+  init: function () {
+    if (this.data.loadedEvent === "") {
+      this.initShape();
+    } else {
+      this.el.addEventListener(
+        this.data.loadedEvent,
+        () => {
+          this.initShape();
+        },
+        { once: true }
+      );
+    }
+  },
+
+  initShape: function () {
     this.system = this.el.sceneEl.systems.physics;
     this.collisionShapes = [];
 
@@ -63,19 +78,19 @@ var AmmoShape = {
     this.body.addShapeComponent(this);
   },
 
-  getMesh: function() {
+  getMesh: function () {
     return this.mesh || null;
   },
 
-  addShapes: function(collisionShapes) {
+  addShapes: function (collisionShapes) {
     this.collisionShapes = collisionShapes;
   },
 
-  getShapes: function() {
+  getShapes: function () {
     return this.collisionShapes;
   },
 
-  remove: function() {
+  remove: function () {
     if (!this.body) {
       return;
     }
