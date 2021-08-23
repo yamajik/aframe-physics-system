@@ -22,11 +22,19 @@ const RIGID_BODY_FLAGS = {
 };
 
 function almostEqualsVector3(epsilon, u, v) {
-  return Math.abs(u.x - v.x) < epsilon && Math.abs(u.y - v.y) < epsilon && Math.abs(u.z - v.z) < epsilon;
+  return (
+    Math.abs(u.x - v.x) < epsilon &&
+    Math.abs(u.y - v.y) < epsilon &&
+    Math.abs(u.z - v.z) < epsilon
+  );
 }
 
 function almostEqualsBtVector3(epsilon, u, v) {
-  return Math.abs(u.x() - v.x()) < epsilon && Math.abs(u.y() - v.y()) < epsilon && Math.abs(u.z() - v.z()) < epsilon;
+  return (
+    Math.abs(u.x() - v.x()) < epsilon &&
+    Math.abs(u.y() - v.y()) < epsilon &&
+    Math.abs(u.z() - v.z()) < epsilon
+  );
 }
 
 function almostEqualsQuaternion(epsilon, u, v) {
@@ -56,7 +64,10 @@ let AmmoBody = {
       default: ACTIVATION_STATE.ACTIVE_TAG,
       oneOf: ACTIVATION_STATES
     },
-    type: { default: "dynamic", oneOf: [TYPE.STATIC, TYPE.DYNAMIC, TYPE.KINEMATIC] },
+    type: {
+      default: "dynamic",
+      oneOf: [TYPE.STATIC, TYPE.DYNAMIC, TYPE.KINEMATIC]
+    },
     emitCollisionEvents: { default: false },
     disableCollision: { default: false },
     collisionFilterGroup: { default: 1 }, //32-bit mask,
@@ -68,7 +79,7 @@ let AmmoBody = {
    * Initializes a body component, assigning it to the physics system and binding listeners for
    * parsing the elements geometry.
    */
-  init: function() {
+  init: function () {
     this.system = this.el.sceneEl.systems.physics;
     this.shapeComponents = [];
 
@@ -93,12 +104,12 @@ let AmmoBody = {
    * Parses an element's geometry and component metadata to create an Ammo body instance for the
    * component.
    */
-  initBody: (function() {
+  initBody: (function () {
     const pos = new THREE.Vector3();
     const quat = new THREE.Quaternion();
     const boundingBox = new THREE.Box3();
 
-    return function() {
+    return function () {
       const el = this.el,
         data = this.data;
 
@@ -131,17 +142,36 @@ let AmmoBody = {
         this.localInertia
       );
       this.body = new Ammo.btRigidBody(this.rbInfo);
-      this.body.setActivationState(ACTIVATION_STATES.indexOf(data.activationState) + 1);
-      this.body.setSleepingThresholds(data.linearSleepingThreshold, data.angularSleepingThreshold);
+      this.body.setActivationState(
+        ACTIVATION_STATES.indexOf(data.activationState) + 1
+      );
+      this.body.setSleepingThresholds(
+        data.linearSleepingThreshold,
+        data.angularSleepingThreshold
+      );
 
       this.body.setDamping(data.linearDamping, data.angularDamping);
 
-      const angularFactor = new Ammo.btVector3(data.angularFactor.x, data.angularFactor.y, data.angularFactor.z);
+      const angularFactor = new Ammo.btVector3(
+        data.angularFactor.x,
+        data.angularFactor.y,
+        data.angularFactor.z
+      );
       this.body.setAngularFactor(angularFactor);
       Ammo.destroy(angularFactor);
 
-      const gravity = new Ammo.btVector3(data.gravity.x, data.gravity.y, data.gravity.z);
-      if (!almostEqualsBtVector3(0.001, gravity, this.system.driver.physicsWorld.getGravity())) {
+      const gravity = new Ammo.btVector3(
+        data.gravity.x,
+        data.gravity.y,
+        data.gravity.z
+      );
+      if (
+        !almostEqualsBtVector3(
+          0.001,
+          gravity,
+          this.system.driver.physicsWorld.getGravity()
+        )
+      ) {
         this.body.setGravity(gravity);
         this.body.setFlags(RIGID_BODY_FLAGS.DISABLE_WORLD_GRAVITY);
       }
@@ -160,23 +190,31 @@ let AmmoBody = {
     };
   })(),
 
-  tick: function() {
+  tick: function () {
     if (this.system.initialized && !this.isLoaded && this.loadedEventFired) {
       this.initBody();
     }
   },
 
-  _updateShapes: (function() {
+  _updateShapes: (function () {
     const needsPolyhedralInitialization = [SHAPE.HULL, SHAPE.HACD, SHAPE.VHACD];
-    return function() {
+    return function () {
       let updated = false;
 
       const obj = this.el.object3D;
-      if (this.data.scaleAutoUpdate && this.prevScale && !almostEqualsVector3(0.001, obj.scale, this.prevScale)) {
+      if (
+        this.data.scaleAutoUpdate &&
+        this.prevScale &&
+        !almostEqualsVector3(0.001, obj.scale, this.prevScale)
+      ) {
         this.prevScale.copy(obj.scale);
         updated = true;
 
-        this.localScaling.setValue(this.prevScale.x, this.prevScale.y, this.prevScale.z);
+        this.localScaling.setValue(
+          this.prevScale.x,
+          this.prevScale.y,
+          this.prevScale.z
+        );
         this.compoundShape.setLocalScaling(this.localScaling);
       }
 
@@ -192,7 +230,10 @@ let AmmoBody = {
           for (let j = 0; j < collisionShapes.length; j++) {
             const collisionShape = collisionShapes[j];
             if (!collisionShape.added) {
-              this.compoundShape.addChildShape(collisionShape.localTransform, collisionShape);
+              this.compoundShape.addChildShape(
+                collisionShape.localTransform,
+                collisionShape
+              );
               collisionShape.added = true;
             }
           }
@@ -206,12 +247,17 @@ let AmmoBody = {
       }
 
       //call initializePolyhedralFeatures for hull shapes if debug is turned on and/or scale changes
-      if (this.system.debug && (updated || !this.polyHedralFeaturesInitialized)) {
+      if (
+        this.system.debug &&
+        (updated || !this.polyHedralFeaturesInitialized)
+      ) {
         for (let i = 0; i < this.shapeComponents.length; i++) {
           const collisionShapes = this.shapeComponents[i].getShapes();
           for (let j = 0; j < collisionShapes.length; j++) {
             const collisionShape = collisionShapes[j];
-            if (needsPolyhedralInitialization.indexOf(collisionShape.type) !== -1) {
+            if (
+              needsPolyhedralInitialization.indexOf(collisionShape.type) !== -1
+            ) {
               collisionShape.initializePolyhedralFeatures(0);
             }
           }
@@ -221,9 +267,12 @@ let AmmoBody = {
     };
   })(),
 
-  _createCollisionShape: function(shapeComponent) {
+  _createCollisionShape: function (shapeComponent) {
     const data = shapeComponent.data;
-    const collisionShapes = threeToAmmo.createCollisionShapes(shapeComponent.getMesh(), data);
+    const collisionShapes = threeToAmmo.createCollisionShapes(
+      shapeComponent.getMesh(),
+      data
+    );
     shapeComponent.addShapes(collisionShapes);
     return;
   },
@@ -231,15 +280,19 @@ let AmmoBody = {
   /**
    * Registers the component with the physics system.
    */
-  play: function() {
+  play: function () {
     if (this.isLoaded) {
       this._addToSystem();
     }
   },
 
-  _addToSystem: function() {
+  _addToSystem: function () {
     if (!this.addedToSystem) {
-      this.system.addBody(this.body, this.data.collisionFilterGroup, this.data.collisionFilterMask);
+      this.system.addBody(
+        this.body,
+        this.data.collisionFilterGroup,
+        this.data.collisionFilterMask
+      );
 
       if (this.data.emitCollisionEvents) {
         this.system.driver.addEventListener(this.body);
@@ -253,7 +306,7 @@ let AmmoBody = {
   /**
    * Unregisters the component with the physics system.
    */
-  pause: function() {
+  pause: function () {
     if (this.addedToSystem) {
       this.system.removeComponent(this);
       this.system.removeBody(this.body);
@@ -264,7 +317,7 @@ let AmmoBody = {
   /**
    * Updates the rigid body instance, where possible.
    */
-  update: function(prevData) {
+  update: function (prevData) {
     if (this.isLoaded) {
       if (!this.hasUpdated) {
         //skip the first update
@@ -274,12 +327,17 @@ let AmmoBody = {
 
       const data = this.data;
 
-      if (prevData.type !== data.type || prevData.disableCollision !== data.disableCollision) {
+      if (
+        prevData.type !== data.type ||
+        prevData.disableCollision !== data.disableCollision
+      ) {
         this.updateCollisionFlags();
       }
 
       if (prevData.activationState !== data.activationState) {
-        this.body.forceActivationState(ACTIVATION_STATES.indexOf(data.activationState) + 1);
+        this.body.forceActivationState(
+          ACTIVATION_STATES.indexOf(data.activationState) + 1
+        );
         if (data.activationState === ACTIVATION_STATE.ACTIVE_TAG) {
           this.body.activate(true);
         }
@@ -294,16 +352,32 @@ let AmmoBody = {
         broadphaseProxy.set_m_collisionFilterMask(data.collisionFilterMask);
         this.system.driver.broadphase
           .getOverlappingPairCache()
-          .removeOverlappingPairsContainingProxy(broadphaseProxy, this.system.driver.dispatcher);
+          .removeOverlappingPairsContainingProxy(
+            broadphaseProxy,
+            this.system.driver.dispatcher
+          );
       }
 
-      if (prevData.linearDamping != data.linearDamping || prevData.angularDamping != data.angularDamping) {
+      if (
+        prevData.linearDamping != data.linearDamping ||
+        prevData.angularDamping != data.angularDamping
+      ) {
         this.body.setDamping(data.linearDamping, data.angularDamping);
       }
 
       if (!almostEqualsVector3(0.001, prevData.gravity, data.gravity)) {
-        const gravity = new Ammo.btVector3(data.gravity.x, data.gravity.y, data.gravity.z);
-        if (!almostEqualsBtVector3(0.001, gravity, this.system.driver.physicsWorld.getGravity())) {
+        const gravity = new Ammo.btVector3(
+          data.gravity.x,
+          data.gravity.y,
+          data.gravity.z
+        );
+        if (
+          !almostEqualsBtVector3(
+            0.001,
+            gravity,
+            this.system.driver.physicsWorld.getGravity()
+          )
+        ) {
           this.body.setFlags(RIGID_BODY_FLAGS.DISABLE_WORLD_GRAVITY);
         } else {
           this.body.setFlags(RIGID_BODY_FLAGS.NONE);
@@ -316,11 +390,20 @@ let AmmoBody = {
         prevData.linearSleepingThreshold != data.linearSleepingThreshold ||
         prevData.angularSleepingThreshold != data.angularSleepingThreshold
       ) {
-        this.body.setSleepingThresholds(data.linearSleepingThreshold, data.angularSleepingThreshold);
+        this.body.setSleepingThresholds(
+          data.linearSleepingThreshold,
+          data.angularSleepingThreshold
+        );
       }
 
-      if (!almostEqualsVector3(0.001, prevData.angularFactor, data.angularFactor)) {
-        const angularFactor = new Ammo.btVector3(data.angularFactor.x, data.angularFactor.y, data.angularFactor.z);
+      if (
+        !almostEqualsVector3(0.001, prevData.angularFactor, data.angularFactor)
+      ) {
+        const angularFactor = new Ammo.btVector3(
+          data.angularFactor.x,
+          data.angularFactor.y,
+          data.angularFactor.z
+        );
         this.body.setAngularFactor(angularFactor);
         Ammo.destroy(angularFactor);
       }
@@ -332,7 +415,7 @@ let AmmoBody = {
   /**
    * Removes the component and all physics and scene side effects.
    */
-  remove: function() {
+  remove: function () {
     if (this.triMesh) Ammo.destroy(this.triMesh);
     if (this.localScaling) Ammo.destroy(this.localScaling);
     if (this.compoundShape) Ammo.destroy(this.compoundShape);
@@ -347,14 +430,14 @@ let AmmoBody = {
     Ammo.destroy(this.rotation);
   },
 
-  beforeStep: function() {
+  beforeStep: function () {
     this._updateShapes();
     if (this.data.type !== TYPE.DYNAMIC) {
       this.syncToPhysics();
     }
   },
 
-  step: function() {
+  step: function () {
     if (this.data.type === TYPE.DYNAMIC) {
       this.syncFromPhysics();
     }
@@ -363,12 +446,12 @@ let AmmoBody = {
   /**
    * Updates the rigid body's position, velocity, and rotation, based on the scene.
    */
-  syncToPhysics: (function() {
+  syncToPhysics: (function () {
     const q = new THREE.Quaternion();
     const v = new THREE.Vector3();
     const q2 = new THREE.Vector3();
     const v2 = new THREE.Vector3();
-    return function() {
+    return function () {
       const el = this.el,
         parentEl = el.parentEl,
         body = this.body;
@@ -391,7 +474,10 @@ let AmmoBody = {
       const quaternion = this.msTransform.getRotation();
       q2.set(quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w());
 
-      if (!almostEqualsVector3(0.001, v, v2) || !almostEqualsQuaternion(0.001, q, q2)) {
+      if (
+        !almostEqualsVector3(0.001, v, v2) ||
+        !almostEqualsQuaternion(0.001, q, q2)
+      ) {
         if (!this.body.isActive()) {
           this.body.activate(true);
         }
@@ -410,11 +496,11 @@ let AmmoBody = {
   /**
    * Updates the scene object's position and rotation, based on the physics simulation.
    */
-  syncFromPhysics: (function() {
+  syncFromPhysics: (function () {
     const v = new THREE.Vector3(),
       q1 = new THREE.Quaternion(),
       q2 = new THREE.Quaternion();
-    return function() {
+    return function () {
       this.motionState.getWorldTransform(this.msTransform);
       const position = this.msTransform.getOrigin();
       const quaternion = this.msTransform.getRotation();
@@ -428,7 +514,12 @@ let AmmoBody = {
 
       if (parentEl.isScene) {
         el.object3D.position.set(position.x(), position.y(), position.z());
-        el.object3D.quaternion.set(quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w());
+        el.object3D.quaternion.set(
+          quaternion.x(),
+          quaternion.y(),
+          quaternion.z(),
+          quaternion.w()
+        );
       } else {
         q1.set(quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w());
         parentEl.object3D.getWorldQuaternion(q2);
@@ -442,17 +533,20 @@ let AmmoBody = {
     };
   })(),
 
-  addShapeComponent: function(shapeComponent) {
-    if (shapeComponent.data.type === SHAPE.MESH && this.data.type !== TYPE.STATIC) {
+  addShapeComponent: function (shapeComponent) {
+    if (
+      shapeComponent.data.type === SHAPE.MESH &&
+      this.data.type !== TYPE.STATIC
+    ) {
       console.warn("non-static mesh colliders not supported");
-      return;
+      // return;
     }
 
     this.shapeComponents.push(shapeComponent);
     this.shapeComponentsChanged = true;
   },
 
-  removeShapeComponent: function(shapeComponent) {
+  removeShapeComponent: function (shapeComponent) {
     const index = this.shapeComponents.indexOf(shapeComponent);
     if (this.compoundShape && index !== -1 && this.body) {
       const shapes = shapeComponent.getShapes();
@@ -464,7 +558,7 @@ let AmmoBody = {
     }
   },
 
-  updateMass: function() {
+  updateMass: function () {
     const shape = this.body.getCollisionShape();
     const mass = this.data.type === TYPE.DYNAMIC ? this.data.mass : 0;
     shape.calculateLocalInertia(mass, this.localInertia);
@@ -472,7 +566,7 @@ let AmmoBody = {
     this.body.updateInertiaTensor();
   },
 
-  updateCollisionFlags: function() {
+  updateCollisionFlags: function () {
     let flags = this.data.disableCollision ? 4 : 0;
     switch (this.data.type) {
       case TYPE.STATIC:
@@ -496,7 +590,7 @@ let AmmoBody = {
     this.system.driver.updateBody(this.body);
   },
 
-  getVelocity: function() {
+  getVelocity: function () {
     return this.body.getLinearVelocity();
   }
 };
