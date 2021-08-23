@@ -1,7 +1,7 @@
 /* global THREE */
 const Driver = require("./driver");
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.AmmoModule = window.Ammo;
   window.Ammo = null;
 }
@@ -29,17 +29,20 @@ AmmoDriver.prototype.constructor = AmmoDriver;
 module.exports = AmmoDriver;
 
 /* @param {object} worldConfig */
-AmmoDriver.prototype.init = function(worldConfig) {
+AmmoDriver.prototype.init = function (worldConfig) {
   //Emscripten doesn't use real promises, just a .then() callback, so it necessary to wrap in a real promise.
   return new Promise(resolve => {
     AmmoModule().then(result => {
       Ammo = result;
       this.epsilon = worldConfig.epsilon || EPS;
-      this.debugDrawMode = worldConfig.debugDrawMode || THREE.AmmoDebugConstants.NoDebug;
+      this.debugDrawMode =
+        worldConfig.debugDrawMode || THREE.AmmoDebugConstants.NoDebug;
       this.maxSubSteps = worldConfig.maxSubSteps || 4;
       this.fixedTimeStep = worldConfig.fixedTimeStep || 1 / 60;
       this.collisionConfiguration = new Ammo.btDefaultCollisionConfiguration();
-      this.dispatcher = new Ammo.btCollisionDispatcher(this.collisionConfiguration);
+      this.dispatcher = new Ammo.btCollisionDispatcher(
+        this.collisionConfiguration
+      );
       this.broadphase = new Ammo.btDbvtBroadphase();
       this.solver = new Ammo.btSequentialImpulseConstraintSolver();
       this.physicsWorld = new Ammo.btDiscreteDynamicsWorld(
@@ -50,22 +53,24 @@ AmmoDriver.prototype.init = function(worldConfig) {
       );
       this.physicsWorld.setForceUpdateAllAabbs(false);
       this.physicsWorld.setGravity(
-        new Ammo.btVector3(0, worldConfig.hasOwnProperty("gravity") ? worldConfig.gravity : -9.8, 0)
+        new Ammo.btVector3(0, worldConfig.gravity ?? -9.8, 0)
       );
-      this.physicsWorld.getSolverInfo().set_m_numIterations(worldConfig.solverIterations);
+      this.physicsWorld
+        .getSolverInfo()
+        .set_m_numIterations(worldConfig.solverIterations);
       resolve();
     });
   });
 };
 
 /* @param {Ammo.btCollisionObject} body */
-AmmoDriver.prototype.addBody = function(body, group, mask) {
+AmmoDriver.prototype.addBody = function (body, group, mask) {
   this.physicsWorld.addRigidBody(body, group, mask);
   this.els.set(Ammo.getPointer(body), body.el);
 };
 
 /* @param {Ammo.btCollisionObject} body */
-AmmoDriver.prototype.removeBody = function(body) {
+AmmoDriver.prototype.removeBody = function (body) {
   this.physicsWorld.removeRigidBody(body);
   this.removeEventListener(body);
   const bodyptr = Ammo.getPointer(body);
@@ -75,15 +80,19 @@ AmmoDriver.prototype.removeBody = function(body) {
   this.currentCollisions.delete(bodyptr);
 };
 
-AmmoDriver.prototype.updateBody = function(body) {
+AmmoDriver.prototype.updateBody = function (body) {
   if (this.els.has(Ammo.getPointer(body))) {
     this.physicsWorld.updateSingleAabb(body);
   }
 };
 
 /* @param {number} deltaTime */
-AmmoDriver.prototype.step = function(deltaTime) {
-  this.physicsWorld.stepSimulation(deltaTime, this.maxSubSteps, this.fixedTimeStep);
+AmmoDriver.prototype.step = function (deltaTime) {
+  this.physicsWorld.stepSimulation(
+    deltaTime,
+    this.maxSubSteps,
+    this.fixedTimeStep
+  );
 
   const numManifolds = this.dispatcher.getNumManifolds();
   for (let i = 0; i < numManifolds; i++) {
@@ -110,10 +119,14 @@ AmmoDriver.prototype.step = function(deltaTime) {
       if (this.collisions.get(body0ptr).indexOf(body1ptr) === -1) {
         this.collisions.get(body0ptr).push(body1ptr);
         if (this.eventListeners.indexOf(body0ptr) !== -1) {
-          this.els.get(body0ptr).emit("collidestart", { targetEl: this.els.get(body1ptr) });
+          this.els
+            .get(body0ptr)
+            .emit("collidestart", { targetEl: this.els.get(body1ptr) });
         }
         if (this.eventListeners.indexOf(body1ptr) !== -1) {
-          this.els.get(body1ptr).emit("collidestart", { targetEl: this.els.get(body0ptr) });
+          this.els
+            .get(body1ptr)
+            .emit("collidestart", { targetEl: this.els.get(body0ptr) });
         }
       }
       if (!this.currentCollisions.has(body0ptr)) {
@@ -132,10 +145,14 @@ AmmoDriver.prototype.step = function(deltaTime) {
         continue;
       }
       if (this.eventListeners.indexOf(body0ptr) !== -1) {
-        this.els.get(body0ptr).emit("collideend", { targetEl: this.els.get(body1ptr) });
+        this.els
+          .get(body0ptr)
+          .emit("collideend", { targetEl: this.els.get(body1ptr) });
       }
       if (this.eventListeners.indexOf(body1ptr) !== -1) {
-        this.els.get(body1ptr).emit("collideend", { targetEl: this.els.get(body0ptr) });
+        this.els
+          .get(body1ptr)
+          .emit("collideend", { targetEl: this.els.get(body0ptr) });
       }
       body1ptrs.splice(j, 1);
     }
@@ -148,29 +165,29 @@ AmmoDriver.prototype.step = function(deltaTime) {
 };
 
 /* @param {?} constraint */
-AmmoDriver.prototype.addConstraint = function(constraint) {
+AmmoDriver.prototype.addConstraint = function (constraint) {
   this.physicsWorld.addConstraint(constraint, false);
 };
 
 /* @param {?} constraint */
-AmmoDriver.prototype.removeConstraint = function(constraint) {
+AmmoDriver.prototype.removeConstraint = function (constraint) {
   this.physicsWorld.removeConstraint(constraint);
 };
 
 /* @param {Ammo.btCollisionObject} body */
-AmmoDriver.prototype.addEventListener = function(body) {
+AmmoDriver.prototype.addEventListener = function (body) {
   this.eventListeners.push(Ammo.getPointer(body));
 };
 
 /* @param {Ammo.btCollisionObject} body */
-AmmoDriver.prototype.removeEventListener = function(body) {
+AmmoDriver.prototype.removeEventListener = function (body) {
   const ptr = Ammo.getPointer(body);
   if (this.eventListeners.indexOf(ptr) !== -1) {
     this.eventListeners.splice(this.eventListeners.indexOf(ptr), 1);
   }
 };
 
-AmmoDriver.prototype.destroy = function() {
+AmmoDriver.prototype.destroy = function () {
   Ammo.destroy(this.collisionConfiguration);
   Ammo.destroy(this.dispatcher);
   Ammo.destroy(this.broadphase);
@@ -183,11 +200,15 @@ AmmoDriver.prototype.destroy = function() {
  * @param {THREE.Scene} scene
  * @param {object} options
  */
-AmmoDriver.prototype.getDebugDrawer = function(scene, options) {
+AmmoDriver.prototype.getDebugDrawer = function (scene, options) {
   if (!this.debugDrawer) {
     options = options || {};
     options.debugDrawMode = options.debugDrawMode || this.debugDrawMode;
-    this.debugDrawer = new THREE.AmmoDebugDrawer(scene, this.physicsWorld, options);
+    this.debugDrawer = new THREE.AmmoDebugDrawer(
+      scene,
+      this.physicsWorld,
+      options
+    );
   }
   return this.debugDrawer;
 };
